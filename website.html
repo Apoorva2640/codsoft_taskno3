@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Alumni Stories Interactive Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Leaflet CSS (Maps) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    body { 
+      font-family: 'Segoe UI', sans-serif; 
+      background: linear-gradient(120deg, #eaf6fb 0%, #f7eaf3 100%);
+      margin:0;
+      padding:0;
+    }
+    #map { height: 68vh; width: 100%; margin-bottom: 1rem; border-radius: 14px; box-shadow: 0 0 12px #cdf2fa;}
+    .container { max-width: 900px; margin: 2rem auto; }
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #bbc9e9; padding: 2rem;}
+    button, input, select, textarea {
+      font-size: 1rem; border-radius: 6px; border: 1px solid #b3c6ff; padding: .5rem;
+    }
+    label { margin-top: 1rem; display:block;}
+    .popup-img { max-width:90px; max-height:90px; border-radius:50%; margin-bottom:8px;}
+    .filter-bar { display: flex; gap:1rem; margin-bottom:1.3rem; }
+    .filter-bar input, .filter-bar select { flex: 1; }
+    .submit-success { background: #cdfbb3; color: #154300; padding: 8px 12px; border-radius: 5px; margin-top:8px; }
+    @media (max-width:600px) {
+      .container {padding:0 6px;}
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1 style="text-align:center;margin-bottom:1.1rem;">Alumni Stories Interactive Map</h1>
+  <div class="filter-bar">
+    <input type="text" id="cityFilter" placeholder="Filter by city..." />
+    <select id="topicFilter">
+      <option value="">All Topics</option>
+      <option value="AI">AI</option>
+      <option value="Business">Business</option>
+      <option value="Research">Research</option>
+      <option value="Design">Design</option>
+      <option value="Teaching">Teaching</option>
+    </select>
+    <button onclick="resetFilters()">Reset Filters</button>
+  </div>
+
+  <div id="map"></div>
+  
+  <div class="card">
+    <h2 style="margin-bottom:1rem;">Submit Your Story (“Put yourself on the map!”)</h2>
+    <form id="storyForm">
+      <label>Name <input type="text" id="name" required></label>
+      <label>Graduation Year <input type="number" id="year" min="1950" max="2025" required></label>
+      <label>City <input type="text" id="city" required></label>
+      <label>Latitude <input type="number" step="0.0001" id="lat" required></label>
+      <label>Longitude <input type="number" step="0.0001" id="lng" required></label>
+      <label>Current Role <input type="text" id="role" required></label>
+      <label>Topic
+        <select id="topic" required>
+          <option value="">Choose...</option>
+          <option value="AI">AI</option>
+          <option value="Business">Business</option>
+          <option value="Research">Research</option>
+          <option value="Design">Design</option>
+          <option value="Teaching">Teaching</option>
+        </select>
+      </label>
+      <label>Story <textarea id="story" rows="3" required></textarea></label>
+      <label>LinkedIn/Profile Link <input type="url" id="link" placeholder="https://linkedin.com/in/alumni"></label>
+      <label>Photo (URL, optional) <input type="url" id="photo" placeholder="https://..."></label>
+      <button type="submit">Add to Map</button>
+    </form>
+    <div id="successMsg" class="submit-success" style="display:none;">Your story was added!</div>
+  </div>
+</div>
+
+<!-- Leaflet JS (Maps) -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // Sample alumni data
+  let alumniData = [
+    {
+      name: "Rahul Sharma",
+      year: 2020,
+      city: "Bangalore",
+      lat: 12.9716,
+      lng: 77.5946,
+      role: "Software Engineer, Microsoft",
+      topic: "AI",
+      story: "Transitioned from college project work into large-scale AI deployments.",
+      link: "https://linkedin.com/in/rahulsharma",
+      photo: "https://randomuser.me/api/portraits/men/31.jpg"
+    },
+    {
+      name: "Priya Das",
+      year: 2019,
+      city: "Delhi",
+      lat: 28.6139,
+      lng: 77.2090,
+      role: "Business Analyst, Amazon",
+      topic: "Business",
+      story: "Pivoted from engineering studies to global business analytics.",
+      link: "https://linkedin.com/in/priyadas",
+      photo: "https://randomuser.me/api/portraits/women/65.jpg"
+    },
+    {
+      name: "Ankit Verma",
+      year: 2018,
+      city: "Pune",
+      lat: 18.5204,
+      lng: 73.8567,
+      role: "Research Fellow, IIT Delhi",
+      topic: "Research",
+      story: "Joined IIT as a researcher after discovering passion during internships.",
+      link: "https://linkedin.com/in/ankitverma",
+      photo: ""
+    }
+  ];
+
+  // Map setup
+  const map = L.map('map').setView([21.1591, 79.0942], 5); // center on India
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap | <a href="#">Apoorva Gandham Alumni Map Demo</a>',
+    maxZoom: 18,
+  }).addTo(map);
+
+  let markerGroup = L.layerGroup().addTo(map);
+
+  function createPopup(alum) {
+    return `
+      ${alum.photo ? `<img src="${alum.photo}" class="popup-img" alt="Photo"/><br>` : ""}
+      <b>${alum.name}</b> (${alum.year})<br>
+      <i>${alum.city}</i><br>
+      <strong>${alum.role}</strong><br>
+      <b>Topic:</b> ${alum.topic}<br>
+      <div style="margin:8px 0 4px 0;">${alum.story}</div>
+      ${alum.link ? `<a href="${alum.link}" target="_blank">LinkedIn/Profile</a>` : ""}
+    `;
+  }
+
+  function renderMarkers(data) {
+    markerGroup.clearLayers();
+    data.forEach(alum => {
+      L.marker([alum.lat, alum.lng])
+        .addTo(markerGroup)
+        .bindPopup(createPopup(alum));
+    });
+  }
+
+  // Filtering functions
+  function applyFilters() {
+    const cityVal = document.getElementById('cityFilter').value.trim().toLowerCase();
+    const topicVal = document.getElementById('topicFilter').value;
+    let filtered = alumniData.filter(a =>
+      (cityVal === '' || a.city.toLowerCase().includes(cityVal)) &&
+      (topicVal === '' || a.topic === topicVal)
+    );
+    renderMarkers(filtered);
+  }
+
+  document.getElementById('cityFilter').addEventListener('input', applyFilters);
+  document.getElementById('topicFilter').addEventListener('change', applyFilters);
+
+  function resetFilters() {
+    document.getElementById('cityFilter').value = '';
+    document.getElementById('topicFilter').value = '';
+    renderMarkers(alumniData);
+  }
+
+  // Initial render
+  renderMarkers(alumniData);
+
+  // Story Form: add new alumni story
+  document.getElementById('storyForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    try {
+      const alum = {
+        name: document.getElementById('name').value,
+        year: Number(document.getElementById('year').value),
+        city: document.getElementById('city').value,
+        lat: Number(document.getElementById('lat').value),
+        lng: Number(document.getElementById('lng').value),
+        role: document.getElementById('role').value,
+        topic: document.getElementById('topic').value,
+        story: document.getElementById('story').value,
+        link: document.getElementById('link').value,
+        photo: document.getElementById('photo').value
+      };
+      alumniData.push(alum);
+      renderMarkers(alumniData);
+      document.getElementById('successMsg').style.display="block";
+      setTimeout(()=>{document.getElementById('successMsg').style.display="none"},2200);
+      e.target.reset();
+    } catch (err) {}
+  });
+</script>
+</body>
+</html>
