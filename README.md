@@ -1,4 +1,3 @@
-# codsoft_tasks
 # Apoorva2640 - CODSOFT Tasks 🎉
 
 Welcome! This repository contains my completed tasks for the CODSOFT web development internship:
